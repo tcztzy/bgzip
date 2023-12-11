@@ -51,4 +51,10 @@ parallel = true
 
 [tool.cibuildwheel]
 # Disable building PyPy wheels on all platforms
-skip = ["pp*", "*-manylinux_i686"]
+skip = "pp*"
+
+[tool.cibuildwheel.macos]
+archs = ["x86_64", "arm64"]
+
+[tool.cibuildwheel.linux]
+archs = ["x86_64"]
