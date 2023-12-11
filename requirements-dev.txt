@@ -1,5 +1,0 @@
-flake8
-mypy
-twine
-Cython
--r requirements.txt

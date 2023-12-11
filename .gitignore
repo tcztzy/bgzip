@@ -46,3 +46,6 @@ npm-debug.log
 backend.tf
 providers.tf
 variables.tf
+
+/src/bgzip/*.c
+*.so

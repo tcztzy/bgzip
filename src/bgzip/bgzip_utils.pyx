@@ -7,8 +7,8 @@ from libc.stdlib cimport abort
 from libc.string cimport memset
 from cython.parallel import prange
 
-from czlib cimport *
-from cpython_nogil cimport *
+from bgzip.czlib cimport *
+from bgzip.cpython_nogil cimport *
 
 
 cdef enum:
@@ -356,7 +356,7 @@ def deflate_to_buffers(py_input_buff, list py_deflated_buffers, int num_threads)
     cdef PyObject * deflated_buffers = <PyObject *>py_deflated_buffers
     cdef PyObject * compressed_chunk
 
-    cdef Py_buffer input_view 
+    cdef Py_buffer input_view
     _get_buffer(<PyObject *>py_input_buff, &input_view)
 
     with nogil:
