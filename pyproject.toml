@@ -43,6 +43,10 @@ compile_args = [
   "-O3",
   { platforms = "darwin", arg = "-Xpreprocessor" },
 ]
+extra_link_args = [
+  { platforms = "darwin", arch = "arm64", arg = "-L/opt/homebrew/opt/libomp/lib" },
+  { platforms = "darwin", arch = "x86_64", arg = "-L/usr/local/opt/libomp/lib" },
+]
 parallel = true
 
 [tool.cibuildwheel]
