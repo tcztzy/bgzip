@@ -44,3 +44,7 @@ compile_args = [
   { platforms = "darwin", arg = "-Xpreprocessor" },
 ]
 parallel = true
+
+[tool.cibuildwheel]
+# Disable building PyPy wheels on all platforms
+skip = "pp*"
