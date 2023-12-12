@@ -5,10 +5,67 @@ from math import ceil
 
 from libc.stdlib cimport abort
 from libc.string cimport memset
+from cpython.object cimport PyObject, Py_buffer
 from cython.parallel import prange
 
-from bgzip.czlib cimport *
-from bgzip.cpython_nogil cimport *
+ctypedef unsigned char Bytef
+ctypedef unsigned long uLongf
+ctypedef unsigned int uInt
+ctypedef z_stream_s z_stream
+
+cdef extern from "zlib.h":
+    extern struct z_stream_s:
+        void * zalloc(void *, unsigned, unsigned) nogil
+        void zfree(void *, void *) nogil
+        uInt avail_in
+        uInt avail_out
+        const Bytef *next_in
+        const Bytef *next_out
+        uLongf total_out
+        void * opaque
+
+    extern int inflate(z_stream * strm, int flush) nogil
+    extern int inflateInit2(z_stream * strm, int wbits) nogil
+    extern int inflateEnd(z_stream *) nogil
+
+    extern int deflate(z_stream * strm, int flush) nogil
+    extern int deflateInit2(z_stream * strm, int level, int method, int wbits, int  mem_level, int strategy) nogil
+    extern int deflateEnd(z_stream *) nogil
+
+    extern uLongf crc32(uLongf crc, const Bytef * data, unsigned int len) nogil
+
+    extern int Z_OK
+    extern int Z_FINISH
+    extern int Z_STREAM_END
+    extern int Z_BEST_COMPRESSION
+    extern int Z_DEFLATED
+    extern int Z_DEFAULT_STRATEGY
+
+cdef extern from "Python.h":
+    extern PyObject * PyByteArray_FromStringAndSize(char *, int) nogil
+    extern char * PyByteArray_AS_STRING(PyObject *) nogil
+    extern int PyByteArray_Resize(PyObject *, int) nogil
+    extern int  PyByteArray_Size(PyObject *) nogil
+
+    extern PyObject * PyList_New(int size) nogil
+    extern int PyList_SetItem(PyObject *, int, PyObject *) nogil
+    extern PyObject * PyList_GetItem(PyObject *, int) nogil
+
+    extern int PyBytes_GET_SIZE(PyObject *) nogil
+    extern char * PyBytes_AS_STRING(PyObject *) nogil
+
+    extern int PyMemoryView_Check(PyObject *) nogil
+    extern char * PyMemoryView_GET_BUFFER(PyObject *) nogil
+    extern PyObject * PyMemoryView_GET_BASE(PyObject *) nogil
+
+    extern int PySequence_Size(PyObject *) nogil
+
+    extern int PyObject_GetBuffer(PyObject *, Py_buffer *, int flags)
+    extern void PyBuffer_Release(Py_buffer *)
+    extern int PyBUF_SIMPLE
+
+    extern void Py_INCREF(PyObject *) nogil
+    extern void Py_DECREF(PyObject *) nogil
 
 
 cdef enum:

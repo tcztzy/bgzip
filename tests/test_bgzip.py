@@ -1,15 +1,11 @@
 #!/usr/bin/env python
 import io
 import os
-import sys
 import gzip
 import random
 import unittest
 from random import randint
-from typing import Any, Generator, List, Sequence
-
-pkg_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # noqa
-sys.path.insert(0, pkg_root)  # noqa
+from typing import Generator, List, Sequence
 
 import bgzip
 
@@ -75,7 +71,9 @@ class TestBGZipReader(unittest.TestCase):
             self.assertEqual(self.expected_data.decode("utf-8"), content)
 
     def test_inflate_chunks(self):
-        size = (2 * bgzip.bgu.block_batch_size + 1) * bgzip.bgu.block_data_inflated_size
+        size = (
+            2 * bgzip.utils.block_batch_size + 1
+        ) * bgzip.utils.block_data_inflated_size
         expected_data = os.urandom(size)
         inflate_buf = memoryview(bytearray(30 * 1024 * 1024))
 
@@ -87,58 +85,84 @@ class TestBGZipReader(unittest.TestCase):
             deflated_blocks.extend([bytes(b) for b in blocks])
             data = data[bytes_deflated:]
 
-        def _test_inflate_chunks(remaining_chunks: List[memoryview], atomic: bool=False):
+        def _test_inflate_chunks(
+            remaining_chunks: List[memoryview], atomic: bool = False
+        ):
             remaining_chunks = remaining_chunks.copy()
             reinflated_data = b""
             while remaining_chunks:
-                inflate_info = bgzip.inflate_chunks(remaining_chunks, inflate_buf, atomic=atomic)
-                self.assertGreater(inflate_info['bytes_inflated'], 0)
-                remaining_chunks = inflate_info['remaining_chunks']
-                reinflated_data += b"".join(inflate_info['blocks'])
+                inflate_info = bgzip.inflate_chunks(
+                    remaining_chunks, inflate_buf, atomic=atomic
+                )
+                self.assertGreater(inflate_info["bytes_inflated"], 0)
+                remaining_chunks = inflate_info["remaining_chunks"]
+                reinflated_data += b"".join(inflate_info["blocks"])
             self.assertEqual(expected_data, reinflated_data)
 
         with self.subTest("all blocks"):
             _test_inflate_chunks([memoryview(bytes(b)) for b in deflated_blocks])
 
         with self.subTest("chunked blocks"):
-            _test_inflate_chunks([memoryview(b"".join(chunk))
-                                  for chunk in _randomly_chunked(deflated_blocks)])
+            _test_inflate_chunks(
+                [
+                    memoryview(b"".join(chunk))
+                    for chunk in _randomly_chunked(deflated_blocks)
+                ]
+            )
 
         with self.subTest("initial large chunk"):
-            _test_inflate_chunks([memoryview(b"".join(deflated_blocks[:-1])),
-                                  memoryview(deflated_blocks[-1])])
+            _test_inflate_chunks(
+                [
+                    memoryview(b"".join(deflated_blocks[:-1])),
+                    memoryview(deflated_blocks[-1]),
+                ]
+            )
 
         with self.subTest("trailing large chunk"):
-            _test_inflate_chunks([memoryview(deflated_blocks[0]),
-                                  memoryview(b"".join(deflated_blocks[1:]))])
+            _test_inflate_chunks(
+                [
+                    memoryview(deflated_blocks[0]),
+                    memoryview(b"".join(deflated_blocks[1:])),
+                ]
+            )
 
         with self.subTest("leading large chunk atomic"):
             inflate_buf = memoryview(bytearray(200 * 1024))
-            chunks = [memoryview(b"".join(deflated_blocks[:-1])), memoryview(deflated_blocks[-1])]
+            chunks = [
+                memoryview(b"".join(deflated_blocks[:-1])),
+                memoryview(deflated_blocks[-1]),
+            ]
             inflate_info = bgzip.inflate_chunks(chunks, inflate_buf, atomic=True)
-            self.assertEqual(inflate_info['remaining_chunks'], chunks)
+            self.assertEqual(inflate_info["remaining_chunks"], chunks)
 
         with self.subTest("trailing large chunk atomic"):
             inflate_buf = memoryview(bytearray(200 * 1024))
-            chunks = [memoryview(deflated_blocks[0]), memoryview(b"".join(deflated_blocks[1:]))]
+            chunks = [
+                memoryview(deflated_blocks[0]),
+                memoryview(b"".join(deflated_blocks[1:])),
+            ]
             inflate_info = bgzip.inflate_chunks(chunks, inflate_buf, atomic=True)
-            self.assertEqual(inflate_info['remaining_chunks'][0], chunks[1])
+            self.assertEqual(inflate_info["remaining_chunks"][0], chunks[1])
 
         with self.subTest("small inflate buf"):
             inflate_buf = memoryview(bytearray(200 * 1024))
-            _test_inflate_chunks([memoryview(b"".join(chunk))
-                                  for chunk in _randomly_chunked(deflated_blocks)])
+            _test_inflate_chunks(
+                [
+                    memoryview(b"".join(chunk))
+                    for chunk in _randomly_chunked(deflated_blocks)
+                ]
+            )
 
         with self.subTest("buf too small to inflate anything"):
             inflate_buf = memoryview(bytearray(1))
             chunks = [memoryview(b"".join(deflated_blocks))]
             inflate_info = bgzip.inflate_chunks(chunks, inflate_buf)
-            self.assertEqual(0, inflate_info['bytes_read'])
-            self.assertEqual(0, inflate_info['bytes_inflated'])
-            self.assertEqual(chunks, inflate_info['remaining_chunks'])
-            self.assertEqual(list(), inflate_info['block_sizes'])
-            self.assertEqual(list(), inflate_info['blocks_per_chunk'])
-            self.assertEqual(list(), inflate_info['blocks'])
+            self.assertEqual(0, inflate_info["bytes_read"])
+            self.assertEqual(0, inflate_info["bytes_inflated"])
+            self.assertEqual(chunks, inflate_info["remaining_chunks"])
+            self.assertEqual(list(), inflate_info["block_sizes"])
+            self.assertEqual(list(), inflate_info["blocks_per_chunk"])
+            self.assertEqual(list(), inflate_info["blocks"])
 
         with self.subTest("passing in non-memoryview buffers should raise"):
             with self.assertRaises(TypeError):
@@ -156,24 +180,28 @@ class TestBGZipReader(unittest.TestCase):
                 input_buf += raw.read(random.randint(0, 100 * 1024))
                 if not input_buf:
                     break
-                inflate_info = bgzip.inflate_chunks([memoryview(input_buf)], inflate_buf)
-                input_buf = b"".join(inflate_info['remaining_chunks'])
-                data += b"".join(inflate_info['blocks'])
+                inflate_info = bgzip.inflate_chunks(
+                    [memoryview(input_buf)], inflate_buf
+                )
+                input_buf = b"".join(inflate_info["remaining_chunks"])
+                data += b"".join(inflate_info["blocks"])
         self.assertEqual(expected_data, data)
 
-def _randomly_chunked(items: Sequence[Any]) -> Generator[Sequence[Any], None, None]:
+
+def _randomly_chunked(items: Sequence) -> Generator[Sequence, None, None]:
     items = [i for i in items]
     while items:
         chunk_size = random.randint(1, 20)
         yield items[:chunk_size]
         items = items[chunk_size:]
 
+
 class TestBGZipWriter(unittest.TestCase):
     def test_gen_buffers(self):
-        bgzip.Deflater._gen_buffers(bgzip.bgu.block_batch_size)
+        bgzip.Deflater._gen_buffers(bgzip.utils.block_batch_size)
         bgzip.Deflater._gen_buffers(1)
 
-        for num_bufs in [0, bgzip.bgu.block_batch_size + 1]:
+        for num_bufs in [0, bgzip.utils.block_batch_size + 1]:
             with self.assertRaises(ValueError):
                 bgzip.Deflater._gen_buffers(num_bufs)
 
@@ -215,12 +243,13 @@ class TestBGZipWriter(unittest.TestCase):
             fh.write(b"")
 
     def test_large_write(self):
-        """Force write to use several batch calls to bgzip_utils."""
+        """Force write to use several batch calls to bgzip.utils."""
         fh_out = io.BytesIO()
         with bgzip.BGZipWriter(fh_out) as writer:
-            number_of_blocks = 2 * bgzip.bgu.block_batch_size + 1
-            size = number_of_blocks * bgzip.bgu.block_data_inflated_size
+            number_of_blocks = 2 * bgzip.utils.block_batch_size + 1
+            size = number_of_blocks * bgzip.utils.block_data_inflated_size
             writer.write(bytearray(size))
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

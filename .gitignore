@@ -47,5 +47,9 @@ backend.tf
 providers.tf
 variables.tf
 
+# Cython generated files
 /src/bgzip/*.c
 *.so
+
+# Cache files
+cache/

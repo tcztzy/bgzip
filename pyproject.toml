@@ -28,6 +28,9 @@ build-backend = "hatchling.build"
 managed = true
 dev-dependencies = [
     "pre-commit>=3.5.0",
+    "fsspec[s3]>=2023.12.1",
+    "pytest>=7.4.3",
+    "pytest-cov>=4.1.0",
 ]
 
 [tool.hatch.metadata]
@@ -58,3 +61,8 @@ archs = ["x86_64", "arm64"]
 
 [tool.cibuildwheel.linux]
 archs = ["x86_64"]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q --cov"
+testpaths = ["tests"]
