@@ -1,9 +1,6 @@
-import io
-import zlib
 import struct
 from math import ceil
 
-from libc.stdlib cimport abort
 from libc.string cimport memset
 from cpython.object cimport PyObject, Py_buffer
 from cython.parallel import prange
@@ -11,11 +8,10 @@ from cython.parallel import prange
 ctypedef unsigned char Bytef
 ctypedef unsigned long uLongf
 ctypedef unsigned int uInt
-ctypedef z_stream_s z_stream
 
 cdef extern from "zlib.h":
-    extern struct z_stream_s:
-        void * zalloc(void *, unsigned, unsigned) nogil
+    struct z_stream_s:
+        void * zalloc(void *, unsigned int, unsigned int) nogil
         void zfree(void *, void *) nogil
         uInt avail_in
         uInt avail_out
@@ -24,48 +20,49 @@ cdef extern from "zlib.h":
         uLongf total_out
         void * opaque
 
-    extern int inflate(z_stream * strm, int flush) nogil
-    extern int inflateInit2(z_stream * strm, int wbits) nogil
-    extern int inflateEnd(z_stream *) nogil
+    ctypedef z_stream_s z_stream
+    int inflate(z_stream * strm, int flush) nogil
+    int inflateInit2(z_stream * strm, int wbits) nogil
+    int inflateEnd(z_stream *) nogil
 
-    extern int deflate(z_stream * strm, int flush) nogil
-    extern int deflateInit2(z_stream * strm, int level, int method, int wbits, int  mem_level, int strategy) nogil
-    extern int deflateEnd(z_stream *) nogil
+    int deflate(z_stream * strm, int flush) nogil
+    int deflateInit2(z_stream * strm, int level, int method, int wbits, int  mem_level, int strategy) nogil
+    int deflateEnd(z_stream *) nogil
 
-    extern uLongf crc32(uLongf crc, const Bytef * data, unsigned int len) nogil
+    uLongf crc32(uLongf crc, const Bytef * data, unsigned int len) nogil
 
-    extern int Z_OK
-    extern int Z_FINISH
-    extern int Z_STREAM_END
-    extern int Z_BEST_COMPRESSION
-    extern int Z_DEFLATED
-    extern int Z_DEFAULT_STRATEGY
+    int Z_OK
+    int Z_FINISH
+    int Z_STREAM_END
+    int Z_BEST_COMPRESSION
+    int Z_DEFLATED
+    int Z_DEFAULT_STRATEGY
 
 cdef extern from "Python.h":
-    extern PyObject * PyByteArray_FromStringAndSize(char *, int) nogil
-    extern char * PyByteArray_AS_STRING(PyObject *) nogil
-    extern int PyByteArray_Resize(PyObject *, int) nogil
-    extern int  PyByteArray_Size(PyObject *) nogil
+    PyObject * PyByteArray_FromStringAndSize(char *, int) nogil
+    char * PyByteArray_AS_STRING(PyObject *) nogil
+    int PyByteArray_Resize(PyObject *, int) nogil
+    int  PyByteArray_Size(PyObject *) nogil
 
-    extern PyObject * PyList_New(int size) nogil
-    extern int PyList_SetItem(PyObject *, int, PyObject *) nogil
-    extern PyObject * PyList_GetItem(PyObject *, int) nogil
+    PyObject * PyList_New(int size) nogil
+    int PyList_SetItem(PyObject *, int, PyObject *) nogil
+    PyObject * PyList_GetItem(PyObject *, int) nogil
 
-    extern int PyBytes_GET_SIZE(PyObject *) nogil
-    extern char * PyBytes_AS_STRING(PyObject *) nogil
+    int PyBytes_GET_SIZE(PyObject *) nogil
+    char * PyBytes_AS_STRING(PyObject *) nogil
 
-    extern int PyMemoryView_Check(PyObject *) nogil
-    extern char * PyMemoryView_GET_BUFFER(PyObject *) nogil
-    extern PyObject * PyMemoryView_GET_BASE(PyObject *) nogil
+    int PyMemoryView_Check(PyObject *) nogil
+    char * PyMemoryView_GET_BUFFER(PyObject *) nogil
+    PyObject * PyMemoryView_GET_BASE(PyObject *) nogil
 
-    extern int PySequence_Size(PyObject *) nogil
+    int PySequence_Size(PyObject *) nogil
 
-    extern int PyObject_GetBuffer(PyObject *, Py_buffer *, int flags)
-    extern void PyBuffer_Release(Py_buffer *)
-    extern int PyBUF_SIMPLE
+    int PyObject_GetBuffer(PyObject *, Py_buffer *, int flags)
+    void PyBuffer_Release(Py_buffer *)
+    int PyBUF_SIMPLE
 
-    extern void Py_INCREF(PyObject *) nogil
-    extern void Py_DECREF(PyObject *) nogil
+    void Py_INCREF(PyObject *) nogil
+    void Py_DECREF(PyObject *) nogil
 
 
 cdef enum:
@@ -89,31 +86,30 @@ cdef const unsigned char * MAGIC = "\037\213\010\4"
 # cdef Bytef * HEADER = b"\037\213\010\4\0\0\0\0\0\377\6\0\102\103\2\0"
 cdef bytes HEADER = b"\037\213\010\4\0\0\0\0\0\377\6\0\102\103\2\0"
 
-ctypedef block_header_s BlockHeader
 cdef struct block_header_s:
     unsigned char magic[MAGIC_LENGTH]
     unsigned int mod_time
     unsigned char extra_flags
     unsigned char os_type
     unsigned short extra_len
+ctypedef block_header_s BlockHeader
 
-ctypedef block_header_subfield_s BlockHeaderSubfield
 cdef struct block_header_subfield_s:
     unsigned char id_[2]
     unsigned short length
+ctypedef block_header_subfield_s BlockHeaderSubfield
 
-ctypedef block_header_bgzip_subfield_s BlockHeaderBGZipSubfield
 cdef struct block_header_bgzip_subfield_s:
     unsigned char id_[2]
     unsigned short length
     unsigned short block_size
+ctypedef block_header_bgzip_subfield_s BlockHeaderBGZipSubfield
 
-ctypedef block_tailer_s BlockTailer
 cdef struct block_tailer_s:
     unsigned int crc
     unsigned int inflated_size
+ctypedef block_tailer_s BlockTailer
 
-ctypedef block_s Block
 cdef struct block_s:
     unsigned int deflated_size
     unsigned int inflated_size
@@ -123,19 +119,20 @@ cdef struct block_s:
     unsigned int available_in
     Bytef * next_out
     unsigned int avail_out
+ctypedef block_s Block
 
-ctypedef bgzip_stream_s BGZipStream
 cdef struct bgzip_stream_s:
     unsigned int available_in
     Bytef *next_in
+ctypedef bgzip_stream_s BGZipStream
 
-ctypedef chunk_s Chunk
 cdef struct chunk_s:
     BGZipStream src
     Block * blocks
     unsigned int num_blocks
     unsigned int inflated_size
     unsigned int bytes_read
+ctypedef chunk_s Chunk
 
 class BGZIPException(Exception):
     pass
